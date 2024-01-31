@@ -1,9 +1,4 @@
-# David Attenborough narrates your life. 
-
-https://twitter.com/charliebholtz/status/1724815159590293764
-
-## Want to make your own AI app?
-Check out [Replicate](https://replicate.com). We make it easy to run machine learning models with an API.
+# Make me Laugh 
 
 ## Setup
 
@@ -12,7 +7,7 @@ Clone this repo, and setup and activate a virtualenv:
 ```bash
 python3 -m pip install virtualenv
 python3 -m virtualenv venv
-source venv/bin/activate
+venv/bin/activate.bat
 ```
 
 Then, install the dependencies:
