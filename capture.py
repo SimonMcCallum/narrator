@@ -167,7 +167,12 @@ def display_state(state_name,status,x,y):
     else:
         text_surface = font.render(state_name+" off", True, (255, 0, 0))
     screen.blit(text_surface, (x, y))
-    
+
+def display_settings(internet_processing,audio,auto):
+    display_state("(c) ChatGPT",internet_processing,1100,10)
+    display_state("(e) ElevenLabs",audio,1100,30)
+    display_state("(a) Auto",auto,1100,50)
+    pygame.display.flip()    
 
 
 def main():
@@ -202,9 +207,7 @@ def main():
     running = True
     processing = not auto
     
-    display_state("(c) ChatGPT",internet_processing,1160,10)
-    display_state("(e) ElevenLabs",audio,1160,30)
-    display_state("(a) Auto",auto,1160,50)
+    display_settings(internet_processing,audio,auto)
     
     font = pygame.font.SysFont('Arial', 36)
     text_surface = font.render("press <space> to start countdown ", True, (255, 0, 0))  # Red text
@@ -245,9 +248,9 @@ def main():
                 if event.key == pygame.K_e:
                     print("elevenlabs audio"+ str(not audio))
                     audio = not audio
+                display_settings(internet_processing,audio,auto)
+    
                     
-        
-        
                    
         # if stuff still happening reset the countdown to image timer
         if(processing):
@@ -264,9 +267,8 @@ def main():
         if (not victory):
             capture_image(save)
             if (save):
-                display_state("(c) ChatGPT",internet_processing,1100,10)
-                display_state("(e) ElevenLabs",audio,1100,30)
-                display_state("(a) Auto",auto,1100,50) 
+                display_settings(internet_processing,audio,auto)
+ 
              
         save = False
         font = pygame.font.SysFont('Arial', 50)
