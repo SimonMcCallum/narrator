@@ -45,9 +45,11 @@ The system starts in debug mode, you need to press "n" to make it connect to the
 
 ## Keys
 The keyboard controls are
-* n : toggle on and off connecting to internet services including ChatGPT
+* c : toggle on and off connecting to internet services including ChatGPT
 * e : toggle on and off using elevenlabs to generate the audio
 * <space> : start 3 second countdown to taking a photo
 * a : turn on auto capture mode where it takes another photo automatically 3 seconds after the previous photo was processed.
+* r : reset the system after making it laugh
+* w : artifially make the system laugh
 
 
