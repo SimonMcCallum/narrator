@@ -50,6 +50,6 @@ The keyboard controls are
 * <space> : start 3 second countdown to taking a photo
 * a : turn on auto capture mode where it takes another photo automatically 3 seconds after the previous photo was processed.
 * r : reset the system after making it laugh
-* w : artifially make the system laugh
+* w : artificially make the system laugh
 
 
