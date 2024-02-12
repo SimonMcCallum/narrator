@@ -12,8 +12,15 @@ import shutil
 from PIL import Image
 import numpy as np
 import asyncio
+import pathlib
+import textwrap
+import google.generativeai as genai
 
 
+from IPython.display import display
+from IPython.display import Markdown
+
+from googlegen import generation_config, safety_settings
 
 # Folder
 folder = "frames"
@@ -32,13 +39,35 @@ if not cap.isOpened():
         raise IOError("Cannot open webcam")
      
 
+#create a struct for settings including chatGPT, Google, ElevenLabs, and auto
+class settings:
+    def __init__(self, chatGPT, Google, ElevenLabs, auto):
+        self.chatGPT = chatGPT
+        self.Google = Google
+        self.ElevenLabs = ElevenLabs
+        self.auto = auto
 
+#initialize the settings
+settings = settings(chatGPT=False, Google=False, ElevenLabs=False, auto=False)
 
 client = OpenAI()
 
 set_api_key(os.environ.get("ELEVENLABS_API_KEY"))
 #define screen as global
 screen = pygame.display.set_mode((1280, 480))
+
+# Use `os.getenv('GOOGLE_API_KEY')` to fetch an environment variable.
+GOOGLE_API_KEY=os.getenv('GOOGLE_API_KEY')
+genai.configure(api_key=GOOGLE_API_KEY)
+
+for m in genai.list_models():
+  if 'generateContent' in m.supported_generation_methods:
+    print(m.name)
+
+
+def to_markdown(text):
+  text = text.replace('•', '  *')
+  return Markdown(textwrap.indent(text, '> ', predicate=lambda _: True))
 
 
 # Thread safe file read
@@ -79,7 +108,7 @@ def play_audio(text, new=False):
     
 
 # user command sent to ChatGPT
-def generate_new_line(base64_image):
+def generate_ChatGPT_prompt(base64_image):
     return [
         {
             "role": "user",
@@ -98,7 +127,7 @@ def generate_new_line(base64_image):
 
 
 # Chat GPT custom instruction for the image analyser
-def analyze_image(base64_image, script):
+def custom_instructions_ChatGPT(base64_image, script):
     response = client.chat.completions.create(
         model="gpt-4-vision-preview",
         messages=[
@@ -112,7 +141,7 @@ def analyze_image(base64_image, script):
             },
         ]
         + script
-        + generate_new_line(base64_image),
+        + generate_ChatGPT_prompt(base64_image),
         max_tokens=300,
     )
     response_text = response.choices[0].message.content
@@ -155,7 +184,8 @@ def capture_image(save):
                 if os.path.exists(f"{folder}/frame{max_cache}.jpg"):
                     os.remove(f"{folder}/frame{max_cache}.jpg")
                 for i in range(max_cache-1,-1,-1):
-                    shutil.copy(f"{folder}/frame{i}.jpg",f"{folder}/frame{i+1}.jpg")
+                    if os.path.exists(f"{folder}/frame{i}.jpg"):
+                        shutil.copy(f"{folder}/frame{i}.jpg",f"{folder}/frame{i+1}.jpg")
             cv2.imwrite(path, frame)
     else:
         print("Failed to capture image")
@@ -168,16 +198,19 @@ def display_state(state_name,status,x,y):
         text_surface = font.render(state_name+" off", True, (255, 0, 0))
     screen.blit(text_surface, (x, y))
 
-def display_settings(internet_processing,audio,auto):
-    display_state("(c) ChatGPT",internet_processing,1100,10)
-    display_state("(e) ElevenLabs",audio,1100,30)
-    display_state("(a) Auto",auto,1100,50)
+def display_settings(chatGPT,use_Google,elevenLabs,auto):
+    display_state("(c) ChatGPT",chatGPT,1100,10)
+    display_state("(g) Google",use_Google,1100,30)
+    display_state("(e) ElevenLabs",elevenLabs,1100,50)
+    display_state("(a) Auto",auto,1100,70)
     pygame.display.flip()    
 
 
 def main():
     # set a bunch of variables
-    internet_processing = False
+    
+    use_ChatGPT = False
+    use_Google = False
     ui_win = False
     talking = False
     imageTime = 3  #how long to wait to snap
@@ -185,7 +218,7 @@ def main():
     prevTime = time.time()
     save = False
     newshot = False
-    audio = False
+    use_ElevenLabs = False
     
     
     script = []
@@ -207,7 +240,7 @@ def main():
     running = True
     processing = not auto
     
-    display_settings(internet_processing,audio,auto)
+    display_settings(use_ChatGPT,use_ElevenLabs,auto,use_Google)
     
     font = pygame.font.SysFont('Arial', 36)
     text_surface = font.render("press <space> to start countdown ", True, (255, 0, 0))  # Red text
@@ -239,16 +272,19 @@ def main():
                     ui_win = False
                     victory = False
                 if event.key == pygame.K_c:
-                    print("using internet is now "+ str(not internet_processing))
-                    internet_processing = not internet_processing
+                    print("ChatGPT now "+ str(not use_ChatGPT))
+                    use_ChatGPT = not use_ChatGPT
+                if event.key == pygame.K_g:
+                    print("Google now "+ str(not use_Google))
+                    use_Google = not use_Google
                 if event.key == pygame.K_a:
                     print("auto is now "+ str(not auto))
                     auto = not auto
                     processing = not auto  # this is to simulate a space bar press
                 if event.key == pygame.K_e:
-                    print("elevenlabs audio"+ str(not audio))
-                    audio = not audio
-                display_settings(internet_processing,audio,auto)
+                    print("elevenlabs audio"+ str(not use_ElevenLabs))
+                    use_ElevenLabs = not use_ElevenLabs
+                display_settings(use_ChatGPT,use_Google,use_ElevenLabs,auto)
     
                     
                    
@@ -267,7 +303,7 @@ def main():
         if (not victory):
             capture_image(save)
             if (save):
-                display_settings(internet_processing,audio,auto)
+                display_settings(use_ChatGPT,use_Google,use_ElevenLabs,auto)
  
              
         save = False
@@ -287,28 +323,44 @@ def main():
         
         
 
-        # if you are not talking or completed load an image  
-        # if (not talking and not victory):
-            
-            # print("👀 David is watching...")
-            
 
-            # img = pygame.image.load('./frames/frame0.jpg')
-            # img = pygame.transform.scale(img, (640,480))
-            # screen.blit(img, (640, 0, 640, 480))
        
        
-        if (not talking and internet_processing and not victory and newshot):
+        if (not talking and (use_ChatGPT or use_Google) and not victory and newshot):
             #processing = True
-            print("Sending to ChatGPT")
-            # path to your image
-            image_path = os.path.join(os.getcwd(), "./frames/frame0.jpg")
-             
-            # getting the base64 encoding
-            base64_image = encode_image(image_path)
             
-            analysis = analyze_image(base64_image, script=script)
-            print("GTP says: "+analysis)
+            # path to your image
+            image_path = os.path.join(os.getcwd(), f"{folder}/frame0.jpg") 
+            base64_image = encode_image(image_path)
+            if use_ChatGPT:
+                # getting the base64 encoding
+                print("Sending to ChatGPT")
+                analysis = custom_instructions_ChatGPT(base64_image, script=script)
+                analysis = "ChatGPT says:"+analysis
+            elif use_Google:
+                print("Sending to Google")
+                model = genai.GenerativeModel(model_name="gemini-pro-vision",
+                              generation_config=generation_config(),
+                              safety_settings=safety_settings())
+
+                image_parts = [
+                {
+                    "mime_type": "image/jpeg",
+                    "data": base64_image
+                },
+                ]
+                prompt_parts = [
+                "in the style of Sir David Attenborough, narrate the image. Make it snarky and funny. Don't repeat yourself. Make it short."+
+                "If I do anything remotely interesting, make a big deal about it!\
+                Only if the person does something very funny then add the code [LAUGH] to the response.",
+                image_parts[0],
+                ]
+                analysis_google = model.generate_content(prompt_parts)
+                analysis = "Google says:"+analysis_google.text
+            else:
+                analysis = "You have not selected a service to use."
+
+            print(analysis)
             
             font = pygame.font.SysFont('Arial', 20)
             text_surface = font.render(analysis[:50], True, (255, 0, 0))
@@ -325,13 +377,12 @@ def main():
         
 
         
-        if (not talking and newshot and not victory and audio):
+        if (not talking and newshot and not victory and use_ElevenLabs):
             newshot = False
-            print("🎙️ David says:")
-            print(analysis)
+            print("Speaking")
             talking = True
             processing = True
-            play_audio(analysis,internet_processing)
+            play_audio(analysis,use_ElevenLabs)
 
         if (newshot):
             newshot = False      
