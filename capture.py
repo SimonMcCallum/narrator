@@ -90,7 +90,7 @@ def play_audio(text, new=False):
     playtext = text.replace("[LAUGH]","")
     if (new):
         # audio = generate(playtext, voice=os.environ.get("SimonVoice"))
-        audio = generate(playtext, voice="HR8DkUmc2fYGG30ioDmT")
+        audio = generate(playtext, voice="sTCQqJp0U3upwsjJVzoh")
         unique_id = base64.urlsafe_b64encode(os.urandom(30)).decode("utf-8").rstrip("=")
         dir_path = os.path.join("narration", unique_id)
         os.makedirs(dir_path, exist_ok=True)
@@ -134,10 +134,19 @@ def custom_instructions_ChatGPT(base64_image, script):
             {
                 "role": "system",
                 "content": """
-                You are Sir David Attenborough. A short naration of the picture as if it is a nature documentary.
-                Make it snarky and funny. Don't repeat yourself. Make it short. If I do anything remotely interesting, make a big deal about it! 
-                If the person does something funny then add the code [LAUGH] to the response.
-                """,
+    You are analysing as Christian Hawksbey. 
+    
+    Give an description of the image and connect it to the work of the reserve bank of New Zealand.
+    
+    He has been with Te Pūtea Matua since 2019. Prior to his appointment as Deputy Governor/General Manager Financial Stability Group, Christian was the Assistant Governor and General Manager of Economics, Financial Markets and Banking.
+
+Christian was also part of the team that established Harbour Asset Management, which was awarded Morningstar New Zealand Fund Manager of the Year in 2014, 2016 and 2017.
+
+Before this, Christian spent nine years at the Bank of England, where he held senior positions including Private Secretary to the Deputy Governor, Chief Manager of Sterling Markets and Head of Market Intelligence.
+
+Christian graduated from the University of Canterbury with a Master of Commerce (Hons) majoring in Economics.
+
+Give a short description of 100 words.""",
             },
         ]
         + script
@@ -350,9 +359,13 @@ def main():
                 },
                 ]
                 prompt_parts = [
-                "in the style of Sir David Attenborough, narrate the image. Make it snarky and funny. Don't repeat yourself. Make it short."+
-                "If I do anything remotely interesting, make a big deal about it!\
-                Only if the person does something very funny then add the code [LAUGH] to the response.",
+                "    You are analysing as Christian Hawksbey. \
+    Give an description of the image and connect it to the work of the reserve bank of New Zealand.\
+    He has been with Te Pūtea Matua since 2019. Prior to his appointment as Deputy Governor/General Manager Financial Stability Group, Christian was the Assistant Governor and General Manager of Economics, Financial Markets and Banking.\
+Christian was also part of the team that established Harbour Asset Management, which was awarded Morningstar New Zealand Fund Manager of the Year in 2014, 2016 and 2017.\
+Before this, Christian spent nine years at the Bank of England, where he held senior positions including Private Secretary to the Deputy Governor, Chief Manager of Sterling Markets and Head of Market Intelligence.\
+Christian graduated from the University of Canterbury with a Master of Commerce (Hons) majoring in Economics.\
+Give a short description of 100 words.",
                 image_parts[0],
                 ]
                 analysis_google = model.generate_content(prompt_parts)
@@ -386,9 +399,9 @@ def main():
 
         if (newshot):
             newshot = False      
-        if(not talking and victory):
-            laugh = pygame.mixer.Sound("assets/laugh.mp3")
-            laugh.play()
+        # if(not talking and victory):
+            # laugh = pygame.mixer.Sound("assets/laugh.mp3")
+            # laugh.play()
 
         script = script + [{"role": "assistant", "content": analysis}]
 

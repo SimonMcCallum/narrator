@@ -15,7 +15,7 @@ Clone this repo, and setup and activate a virtualenv (for windows using powershe
 ```bash
 python -m pip install virtualenv
 python -m virtualenv venv
-venv/bin/activate.bat
+.\venv\Scripts\activate.bat
 ```
 
 Then, install the dependencies:
