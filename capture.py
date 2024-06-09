@@ -15,12 +15,47 @@ import asyncio
 import pathlib
 import textwrap
 import google.generativeai as genai
-
+import configparser
 
 from IPython.display import display
 from IPython.display import Markdown
 
 from googlegen import generation_config, safety_settings
+
+
+CONFIG_FILE = 'config.ini'
+
+def list_available_webcams(max_webcams=10):
+    """ List available webcams """
+    available_webcams = []
+    for i in range(max_webcams):
+        cap = cv2.VideoCapture(i)
+        if cap.isOpened():
+            available_webcams.append(i)
+            cap.release()
+    return available_webcams
+
+def select_webcam():
+    """ Let user select a webcam """
+    webcams = list_available_webcams()
+    if not webcams:
+        raise IOError("No webcams available")
+    
+    print("Available webcams:")
+    for i, cam in enumerate(webcams):
+        print(f"{i}: Webcam {cam}")
+    
+    while True:
+        try:
+            choice = int(input(f"Select a webcam (0-{len(webcams)-1}): "))
+            if 0 <= choice < len(webcams):
+                return webcams[choice]
+            else:
+                print(f"Please enter a number between 0 and {len(webcams)-1}")
+        except ValueError:
+            print("Invalid input, please enter a number")
+
+
 
 # Folder
 folder = "frames"
@@ -29,40 +64,40 @@ folder = "frames"
 frames_dir = os.path.join(os.getcwd(), folder)
 os.makedirs(frames_dir, exist_ok=True)
 
-# Initialize the webcam 
-cap = cv2.VideoCapture(0) # most likely 0, but could be 1 or 2 depending on your setup
- 
-# Check if the webcam is opened correctly and try 1 if fails
-if not cap.isOpened():
-    cap = cv2.VideoCapture(1)
-    if not cap.isOpened():
-        raise IOError("Cannot open webcam")
+
+
      
 
-#create a struct for settings including chatGPT, Google, ElevenLabs, and auto
-class settings:
-    def __init__(self, chatGPT, Google, ElevenLabs, auto):
+class Settings:
+    def __init__(self, webcam=None, chatGPT=False, Google=False, ElevenLabs=False, auto=False):
+        self.webcam = webcam
         self.chatGPT = chatGPT
         self.Google = Google
         self.ElevenLabs = ElevenLabs
         self.auto = auto
 
-#initialize the settings
-settings = settings(chatGPT=False, Google=False, ElevenLabs=False, auto=False)
+    def save(self):
+        config = configparser.ConfigParser()
+        config['Settings'] = {
+            'Webcam': str(self.webcam) if self.webcam is not None else '',
+            'ChatGPT': str(self.chatGPT),
+            'Google': str(self.Google),
+            'ElevenLabs': str(self.ElevenLabs),
+            'Auto': str(self.auto)
+        }
+        with open(CONFIG_FILE, 'w') as configfile:
+            config.write(configfile)
 
-client = OpenAI()
+    def load(self):
+        config = configparser.ConfigParser()
+        config.read(CONFIG_FILE)
+        if 'Settings' in config:
+            self.webcam = int(config['Settings'].get('Webcam', '')) if config['Settings'].get('Webcam', '').isdigit() else None
+            self.chatGPT = config.getboolean('Settings', 'ChatGPT', fallback=False)
+            self.Google = config.getboolean('Settings', 'Google', fallback=False)
+            self.ElevenLabs = config.getboolean('Settings', 'ElevenLabs', fallback=False)
+            self.auto = config.getboolean('Settings', 'Auto', fallback=False)
 
-set_api_key(os.environ.get("ELEVENLABS_API_KEY"))
-#define screen as global
-screen = pygame.display.set_mode((1280, 480))
-
-# Use `os.getenv('GOOGLE_API_KEY')` to fetch an environment variable.
-GOOGLE_API_KEY=os.getenv('GOOGLE_API_KEY')
-genai.configure(api_key=GOOGLE_API_KEY)
-
-for m in genai.list_models():
-  if 'generateContent' in m.supported_generation_methods:
-    print(m.name)
 
 
 def to_markdown(text):
@@ -90,7 +125,7 @@ def play_audio(text, new=False):
     playtext = text.replace("[LAUGH]","")
     if (new):
         # audio = generate(playtext, voice=os.environ.get("SimonVoice"))
-        audio = generate(playtext, voice="sTCQqJp0U3upwsjJVzoh")
+        audio = generate(playtext, voice="gMy4qOvdI8GLfASRvYgY")
         unique_id = base64.urlsafe_b64encode(os.urandom(30)).decode("utf-8").rstrip("=")
         dir_path = os.path.join("narration", unique_id)
         os.makedirs(dir_path, exist_ok=True)
@@ -129,23 +164,12 @@ def generate_ChatGPT_prompt(base64_image):
 # Chat GPT custom instruction for the image analyser
 def custom_instructions_ChatGPT(base64_image, script):
     response = client.chat.completions.create(
-        model="gpt-4-vision-preview",
+        model="gpt-4o",
         messages=[
             {
                 "role": "system",
                 "content": """
-    You are analysing as Christian Hawksbey. 
-    
-    Give an description of the image and connect it to the work of the reserve bank of New Zealand.
-    
-    He has been with Te Pūtea Matua since 2019. Prior to his appointment as Deputy Governor/General Manager Financial Stability Group, Christian was the Assistant Governor and General Manager of Economics, Financial Markets and Banking.
-
-Christian was also part of the team that established Harbour Asset Management, which was awarded Morningstar New Zealand Fund Manager of the Year in 2014, 2016 and 2017.
-
-Before this, Christian spent nine years at the Bank of England, where he held senior positions including Private Secretary to the Deputy Governor, Chief Manager of Sterling Markets and Head of Market Intelligence.
-
-Christian graduated from the University of Canterbury with a Master of Commerce (Hons) majoring in Economics.
-
+    You are David Attenbourgh. Describe the image and be funny and sarcastic about the humans in the image.
 Give a short description of 100 words.""",
             },
         ]
@@ -215,7 +239,40 @@ def display_settings(chatGPT,use_Google,elevenLabs,auto):
     pygame.display.flip()    
 
 
-def main():
+if __name__ == "__main__":
+    settings = Settings()
+    settings.load()
+    
+    if settings.webcam is None:
+        settings.webcam = select_webcam()
+        settings.save()
+    else:
+        print(f"Loaded webcam {settings.webcam} from settings")
+
+    client = OpenAI()
+
+    # Initialize the webcam from settings
+
+    cap = cv2.VideoCapture(settings.webcam) # most likely 0, but could be 1 or 2 depending on your setup
+    
+    # Check if the webcam is opened correctly and try 1 if fails
+    if not cap.isOpened():
+        cap = cv2.VideoCapture(settings.webcam+1)
+        if not cap.isOpened():
+            raise IOError("Cannot open webcam")
+        
+
+    set_api_key(os.environ.get("ELEVENLABS_API_KEY"))
+    #define screen as global
+    screen = pygame.display.set_mode((1280, 480))
+
+    # Use `os.getenv('GOOGLE_API_KEY')` to fetch an environment variable.
+    GOOGLE_API_KEY=os.getenv('GOOGLE_API_KEY')
+    genai.configure(api_key=GOOGLE_API_KEY)
+
+    for m in genai.list_models():
+        if 'generateContent' in m.supported_generation_methods:
+            print(m.name)
     # set a bunch of variables
     
     use_ChatGPT = False
@@ -359,13 +416,7 @@ def main():
                 },
                 ]
                 prompt_parts = [
-                "    You are analysing as Christian Hawksbey. \
-    Give an description of the image and connect it to the work of the reserve bank of New Zealand.\
-    He has been with Te Pūtea Matua since 2019. Prior to his appointment as Deputy Governor/General Manager Financial Stability Group, Christian was the Assistant Governor and General Manager of Economics, Financial Markets and Banking.\
-Christian was also part of the team that established Harbour Asset Management, which was awarded Morningstar New Zealand Fund Manager of the Year in 2014, 2016 and 2017.\
-Before this, Christian spent nine years at the Bank of England, where he held senior positions including Private Secretary to the Deputy Governor, Chief Manager of Sterling Markets and Head of Market Intelligence.\
-Christian graduated from the University of Canterbury with a Master of Commerce (Hons) majoring in Economics.\
-Give a short description of 100 words.",
+                "    Describe this image in 50 words or fewer.",
                 image_parts[0],
                 ]
                 analysis_google = model.generate_content(prompt_parts)
@@ -399,17 +450,11 @@ Give a short description of 100 words.",
 
         if (newshot):
             newshot = False      
-        # if(not talking and victory):
-            # laugh = pygame.mixer.Sound("assets/laugh.mp3")
-            # laugh.play()
+        if(not talking and victory):
+             laugh = pygame.mixer.Sound("assets/laugh.mp3")
+             laugh.play()
 
         script = script + [{"role": "assistant", "content": analysis}]
-
-
-
-if __name__ == "__main__":
-    main()
-
 
 
 
