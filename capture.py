@@ -106,11 +106,30 @@ def to_markdown(text):
 
 
 # Thread safe file read
-def encode_image(image_path):
+def encode_image(image_path,scale_factor=0.5):
     while True:
         try:
             with open(image_path, "rb") as image_file:
-                return base64.b64encode(image_file.read()).decode("utf-8")
+            # Load the image
+                image = cv2.imread(image_path)
+                
+                # Get original dimensions
+                original_height, original_width = image.shape[:2]
+                
+                # Calculate new dimensions
+                new_width = int(original_width * scale_factor)
+                new_height = int(original_height * scale_factor)
+                new_size = (new_width, new_height)
+                
+                # Resize the image
+                resized_image = cv2.resize(image, new_size, interpolation=cv2.INTER_AREA)
+                
+                # Encode the image to a memory buffer
+                _, buffer = cv2.imencode('.jpg', resized_image, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+                
+                # Convert buffer to base64 string
+                return base64.b64encode(buffer).decode('utf-8')
+            # return base64.b64encode(image_file.read()).decode("utf-8")
         except IOError as e:
             if e.errno != errno.EACCES:
                 # Not a "file in use" error, re-raise
@@ -144,11 +163,14 @@ def play_audio(text, new=False):
 
 # user command sent to ChatGPT
 def generate_ChatGPT_prompt(base64_image):
+    # print the size of the base64 image
+    
+    print ("Generating ChatGPT prompt",np.size(base64_image)," ",type(base64_image))
     return [
         {
             "role": "user",
             "content": [
-                {"type": "text", "text": "Describe this image in 50 words or fewer"},
+                {"type": "text", "text": "Describe this image in 100 words or fewer. Make it sound like David Attenborugh.  Emphasize the humourous things that the people in the scene are doing.  ONLY if the scene Rediculously funny return the word [LAUGH] in the response. Do not say [LAUGH] if the original scene is not rediculous"},
                 {
                     "type": "image_url",
                     "image_url": { 
@@ -350,6 +372,28 @@ if __name__ == "__main__":
                 if event.key == pygame.K_e:
                     print("elevenlabs audio"+ str(not use_ElevenLabs))
                     use_ElevenLabs = not use_ElevenLabs
+                if event.key == pygame.K_s:
+                    print("saving settings")
+                    settings.save()
+                # options to change webcam
+                if event.key == pygame.K_0:
+                    print("webcam 0")
+                    settings.webcam = 0
+                    cap.release()
+                    cap = cv2.VideoCapture(0)
+                    settings.save()
+                if event.key == pygame.K_1:
+                    print("webcam 1")
+                    settings.webcam = 1
+                    cap.release()
+                    cap = cv2.VideoCapture(1)
+                    settings.save()
+                if event.key == pygame.K_2:
+                    print("webcam 2")
+                    settings.webcam = 2
+                    cap.release()
+                    cap = cv2.VideoCapture(2)
+                    settings.save()
                 display_settings(use_ChatGPT,use_Google,use_ElevenLabs,auto)
     
                     
@@ -397,11 +441,11 @@ if __name__ == "__main__":
             
             # path to your image
             image_path = os.path.join(os.getcwd(), f"{folder}/frame0.jpg") 
-            base64_image = encode_image(image_path)
+            resized_image = encode_image(image_path,0.5)
             if use_ChatGPT:
                 # getting the base64 encoding
                 print("Sending to ChatGPT")
-                analysis = custom_instructions_ChatGPT(base64_image, script=script)
+                analysis = custom_instructions_ChatGPT(resized_image, script=script)
                 analysis = "ChatGPT says:"+analysis
             elif use_Google:
                 print("Sending to Google")
@@ -412,7 +456,7 @@ if __name__ == "__main__":
                 image_parts = [
                 {
                     "mime_type": "image/jpeg",
-                    "data": base64_image
+                    "data": resized_image
                 },
                 ]
                 prompt_parts = [
